@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Duelo de Libros — Prototipo</title>
+<style>
+:root{--bg:#0f0f0f;--panel:#181818;--panel2:#222;--line:#2e2e2e;--text:#eee;--muted:#9a9a9a;--gold:#e8b44c;--red:#e4572e;--blue:#4ea8de;--green:#5cc98a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:12px 18px;background:var(--gold);color:#1a1200;font-weight:700}
+button.sec{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:default}
+#app{max-width:980px;margin:0 auto;padding:12px 16px 110px}
+h1{font-family:Georgia,serif;letter-spacing:1px;color:var(--gold);font-size:30px;text-align:center;margin:18px 0 4px}
+.sub{color:var(--muted);text-align:center;font-size:14px;margin-bottom:22px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.box h3{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.opt{flex:1;min-width:130px;background:var(--panel2);border:2px solid var(--line);color:var(--text);text-align:left;font-weight:600}
+.opt.on{border-color:var(--gold)}
+.opt small{display:block;color:var(--muted);font-weight:400;margin-top:3px}
+input{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font:inherit;width:100%}
+/* top bar */
+.bar{display:flex;gap:8px;margin-bottom:10px}
+.pl{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:8px;min-width:0}
+.pl .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.pl .bk{font-size:12px;color:var(--muted)}
+.pl .lv{margin-left:auto;font-size:20px;font-weight:800;white-space:nowrap}
+.pl.prot{border-color:var(--gold)}
+.pl .info{min-width:0}
+.mini{padding:6px 8px;font-size:12px;border-radius:8px}
+.phase{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;margin:4px 2px 10px}
+/* arena */
+.arena{display:flex;justify-content:center;align-items:stretch;gap:12px;margin-bottom:12px}
+.slot{width:160px;min-height:210px;border:2px dashed var(--line);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:8px}
+.vs{align-self:center;font-family:Georgia,serif;color:var(--gold);font-size:22px}
+.slotwrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+.slotwrap .lbl{font-size:12px;color:var(--muted)}
+.pw{font-size:13px;font-weight:700}
+.dice{font-size:13px;color:var(--muted)}
+/* cards */
+.hand{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:640px){.hand{grid-template-columns:repeat(2,1fr)}.slot,.arena .card{width:140px}}
+/* Cada tipo de página tiene su color (como Yu-Gi-Oh!): Criatura marrón · Objeto azul acero · Evento violeta · Lugar verde */
+.t-C{--c1:#9a6332;--c2:#5b3818;--c3:#c98a4b}
+.t-O{--c1:#55718c;--c2:#2c3e50;--c3:#8fb3d1}
+.t-E{--c1:#8a4fae;--c2:#4a2368;--c3:#c69ae3}
+.t-L{--c1:#3f8a52;--c2:#1f4d2b;--c3:#7fcf92}
+.card{--bc:var(--gold);position:relative;background:linear-gradient(160deg,var(--c1),var(--c2));border:3px solid var(--c3);border-radius:12px;padding:7px 8px 24px;min-height:210px;display:flex;flex-direction:column;gap:4px;transition:transform .15s,box-shadow .15s;user-select:none;box-shadow:inset 0 0 0 1px #0004,0 4px 10px #0007;overflow:hidden}
+/* lomo del libro: franja del color del libro a la izquierda */
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bc)}
+.arena .card{width:160px}
+.card.sel{cursor:pointer}
+.card.sel:hover{transform:translateY(-3px)}
+.card.picked{box-shadow:0 0 0 3px var(--gold),0 0 18px #e8b44c88;transform:translateY(-4px)}
+.card.no{opacity:.4;filter:grayscale(.75)}
+.card.dead{opacity:.3;filter:grayscale(1)}
+.card.dead::after{content:"✖";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px;color:var(--red)}
+.card .top{display:flex;justify-content:space-between;align-items:center;padding-left:3px}
+.card .pow{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe29a,var(--gold) 60%,#a87a20);color:#2a1a00;font-weight:900;font-size:19px;display:flex;align-items:center;justify-content:center;border:2px solid #2a1a0099}
+.card .cost{font-size:13px;letter-spacing:1px;background:#0006;border-radius:20px;padding:2px 8px}
+.card .cost.free{font-size:11px;color:#ddd}
+.card .ttl{font-family:Georgia,serif;font-weight:700;font-size:15px;line-height:1.15;margin-top:2px;padding-left:3px;color:#fff;text-shadow:0 1px 2px #000a;display:flex;justify-content:space-between;gap:4px}
+.card .ttl .ti{flex-shrink:0;font-size:15px}
+.card .typ{font-size:10px;font-weight:800;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;color:var(--c3);padding-left:3px;text-shadow:0 1px 1px #000a}
+/* caja de texto tipo hoja de libro (pergamino) */
+.card .ab{font-size:11.5px;line-height:1.3;color:#2b2013;background:linear-gradient(#f6ecd2,#e9d8b0);border-radius:6px;padding:6px 7px;margin-top:2px;flex:1;box-shadow:inset 0 0 6px #8a6a3044;font-family:Georgia,serif}
+.card .ab.empty{color:#7a6a50;font-style:italic}
+.card .ab div{margin-bottom:3px}
+.card .foot{position:absolute;bottom:5px;left:10px;right:8px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#fffc}
+.card .foot .bk{background:var(--bc);color:#111;font-weight:800;border-radius:10px;padding:1px 7px}
+.back{background:repeating-linear-gradient(45deg,#1d1a17,#1d1a17 8px,#24201c 8px,#24201c 16px);border-color:var(--bc);align-items:center;justify-content:center;font-size:40px}
+/* leyenda de tipos */
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 2px 10px}
+.legend span{font-size:12px;font-weight:700;border-radius:20px;padding:3px 10px;color:#fff;background:linear-gradient(160deg,var(--c1),var(--c2));border:2px solid var(--c3)}
+.opt .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.pl{border-left-width:5px}
+.flip{animation:flip .45s ease}
+@keyframes flip{from{transform:rotateY(90deg)}to{transform:rotateY(0)}}
+/* log */
+.log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5;margin-bottom:12px}
+.log div{animation:fade .35s both}
+.log .hl{color:var(--gold);font-weight:700}
+.log .bad{color:#ff8a70}
+.log .good{color:var(--green)}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:24px 16px 16px;display:flex;justify-content:center;gap:10px}
+.actions button{min-width:180px;font-size:16px}
+.big{font-size:56px;text-align:center;margin:8px 0}
+/* overlay */
+.ov{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.ovbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:900px;width:100%;max-height:90vh;overflow:auto}
+.ovbox h2{font-family:Georgia,serif;color:var(--gold);margin-bottom:12px}
+.chap{margin-bottom:14px}
+.chap h4{font-size:13px;color:var(--muted);margin-bottom:6px}
+.rules p,.rules li{font-size:14px;line-height:1.55;margin-bottom:8px;color:#ddd}
+.rules ul{padding-left:18px}
+.center{text-align:center}
+.die{display:inline-block;animation:spin .5s}
+@keyframes spin{from{transform:rotate(-200deg) scale(.5)}to{transform:none}}
+.gtop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.gtop .md{font-size:12px;color:var(--muted);text-align:center}
+.pl.me .nm::after{content:" (vos)";color:var(--muted);font-weight:400}
+.danger{background:#c0392b;color:#fff}
+.card.hint{box-shadow:0 0 0 3px var(--green),0 0 16px #5cc98a99;animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 3px var(--green),0 0 4px #5cc98a44}}
+.coach{background:#13251a;border:1px solid #2f6b45;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5;margin-bottom:12px}
+.coach b{color:var(--green)}
+.cta{display:block;text-align:center;background:linear-gradient(135deg,#2a2210,#1a1508);border:2px solid var(--gold);color:var(--gold);border-radius:12px;padding:13px;font-weight:800;text-decoration:none;margin:12px 0}
+.links{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.links a{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);text-decoration:none;font-size:13px}
+.about p{font-size:13px;line-height:1.55;color:#ccc;margin-bottom:8px}
+.foot-note{font-size:12px;color:var(--muted);line-height:1.5;text-align:center}
+.foot-note a{color:var(--gold)}
+.tutbtn{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:linear-gradient(135deg,#1f3a2a,#14251b);border:2px solid var(--green);color:var(--text);margin-bottom:14px;padding:14px 16px}
+.tutbtn .big2{font-size:34px}.tutbtn small{display:block;color:#a9d8bb;font-weight:400;margin-top:2px}
+.dots{display:flex;gap:5px;justify-content:center;margin-bottom:12px}
+.dots i{width:22px;height:5px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--gold)}
+.tut h2{font-family:Georgia,serif;color:var(--gold);font-size:22px;margin-bottom:12px}
+.tut p{font-size:15px;line-height:1.6;margin-bottom:10px;color:#ddd}
+.tut .muted{color:var(--muted);font-size:13px}
+.tut .okmsg{background:#13251a;border:1px solid #2f6b45;border-radius:10px;padding:8px 10px;color:#bfe8cd}
+.tut .hand{margin-bottom:12px}
+.tvis{font-size:52px;text-align:center;margin:10px 0 16px}.tvis .vs{font-size:22px;vertical-align:middle;margin:0 10px}
+.tcard{display:flex;justify-content:center;margin-bottom:12px}.tcard .card{width:180px}
+.chgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.chgrid div{background:linear-gradient(160deg,#5b3818,#3a2410);border:1px solid #9a6332;border-radius:8px;padding:10px 4px;text-align:center;font-size:13px;font-weight:700}
+.chgrid div.lock{opacity:.45}
+.parts{padding-left:4px;list-style:none}.parts li{font-size:14px;line-height:1.5;margin-bottom:8px;color:#ddd}
+.tut .arena .card{width:150px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ================= DATOS DE LOS LIBROS =================
+   Cada libro: 12 capítulos × 4 páginas.
+   Página: [título, tipo (C criatura, O objeto, E evento, L lugar), poder, coste ('❤','💀'), habilidades]
+   Habilidades: protag, corre, defiende, rastrea, explora, codicia, bucea, super, muerde,
+                emboscada, destruye, curaN, drenaN  (N = número)
+   Para cargar un libro real, reemplazá/añadí un objeto en BOOKS. */
+const BOOKS = [
+ {id:'ceniza', name:'Imperio de Ceniza', short:'Ceniza', emoji:'🔥', color:'#ff6a3d', blurb:'Dragones y fuego. Agresivo: drena vidas y destruye tus mejores páginas.', stats:{Ataque:5,Defensa:2,Control:4}, ch:[
+  [['Cría de dragón','C',2,'',[]],['Chispa errante','E',1,'',['protag','drena1']],['Garra de obsidiana','O',3,'❤',[]],['Cráter humeante','L',3,'',['emboscada']]],
+  [['Jinete novato','C',2,'',['rastrea']],['Llamarada','E',3,'❤',['drena2']],['Wyrm de humo','C',3,'❤',['corre']],['Forja del abismo','L',4,'💀',[]]],
+  [['Escamas templadas','O',3,'',['codicia']],['Saqueo de aldea','E',3,'❤',['destruye']],['Dragona escarlata','C',5,'❤❤',[]],['Heraldo de cenizas','C',2,'',['protag','muerde']]],
+  [['Mapa chamuscado','O',1,'',['explora','super']],['Lluvia de brasas','E',3,'❤',['muerde']],['Nido volcánico','L',4,'❤',['defiende']],['Wyvern carroñero','C',4,'💀',['destruye']]],
+  [['Lancero del magma','C',3,'❤',['rastrea']],['Ojo del volcán','O',2,'',['super','drena1']],['Tormenta ígnea','E',4,'❤❤',['drena1']],['Ciudadela negra','L',5,'💀',['defiende']]],
+  [['Dragón de guerra','C',5,'❤❤',['corre']],['Pacto de fuego','E',2,'❤',['protag','super']],['Yelmo del tirano','O',3,'❤',['muerde']],['Valle calcinado','L',3,'',['emboscada','explora']]],
+  [['Gran wyrm','C',6,'❤❤',[]],['Erupción','E',5,'❤💀',['drena2']],['Corona de escamas','O',4,'❤',['codicia','muerde']],['Templo de lava','L',4,'',['defiende','protag']]],
+  [['Dragona madre','C',6,'❤❤💀',['destruye']],['Ceniza en los ojos','E',3,'',['emboscada']],['Lanza ardiente','O',4,'❤',['corre']],['Fortaleza de basalto','L',5,'❤',['defiende']]],
+  [['Jinete del eclipse','C',5,'❤❤',['corre','rastrea']],['Incendio forestal','E',4,'❤',['drena1','muerde']],['Cetro del caos','O',3,'',['super','codicia']],['Puerto en llamas','L',4,'❤',['destruye']]],
+  [['Wyrm de dos cabezas','C',7,'❤❤❤',[]],['Lluvia de meteoros','E',5,'❤💀',['muerde','drena1']],['Huevo de fénix','O',2,'',['cura2','protag']],['Capital del imperio','L',6,'❤❤',['defiende']]],
+  [['Emperatriz dragón','C',7,'❤❤💀',['destruye']],['Ira del volcán','E',6,'❤❤',['drena2']],['Arnés de guerra','O',4,'',['corre']],['Grieta del mundo','L',5,'💀',['emboscada']]],
+  [['El Primer Dragón','C',8,'❤❤❤💀',['corre']],['Fin de los tiempos','E',6,'❤❤',['destruye','muerde']],['Corazón de magma','O',5,'❤',['super']],['Trono de ceniza','L',6,'❤',['protag','defiende']]]
+ ]},
+ {id:'alba', name:'Orden del Alba', short:'Alba', emoji:'🛡️', color:'#5fb8f0', blurb:'Caballeros y fe. Resistente: se cura, defiende y aguanta.', stats:{Ataque:3,Defensa:5,Control:3}, ch:[
+  [['Escudero','C',2,'',[]],['Plegaria','E',1,'',['cura1']],['Escudo de roble','O',2,'',['defiende','codicia']],['Capilla del camino','L',3,'❤',['protag']]],
+  [['Caballero errante','C',3,'❤',['rastrea']],['Juramento','E',2,'',['protag','cura1']],['Lanza bendita','O',3,'❤',['corre']],['Puente levadizo','L',3,'',['defiende']]],
+  [['Arquera del alba','C',2,'',['rastrea','super']],['Carga de caballería','E',4,'❤❤',['corre']],['Estandarte','O',2,'',['explora','cura1']],['Muralla blanca','L',5,'💀',['defiende']]],
+  [['Paladín','C',4,'❤',['cura1']],['Emboscada en el bosque','E',2,'',['emboscada']],['Espada solar','O',4,'❤',['muerde']],['Monasterio','L',2,'',['cura2']]],
+  [['Grifo de la orden','C',4,'❤',['corre','rastrea']],['Torneo','E',3,'',['super']],['Armadura de plata','O',3,'',['defiende','codicia']],['Castillo del alba','L',5,'❤💀',['protag']]],
+  [['Capitana de la guardia','C',5,'❤❤',['destruye']],['Luz sagrada','E',3,'❤',['cura2','muerde']],['Yelmo alado','O',2,'',['protag','explora']],['Campo de batalla','L',4,'❤',['emboscada']]],
+  [['Comandante veterano','C',5,'❤',['rastrea']],['Asedio','E',5,'❤💀',['destruye']],['Reliquia antigua','O',3,'',['cura2','super']],['Ciudad amurallada','L',5,'❤',['defiende']]],
+  [['Caballeros del león','C',6,'❤❤',['corre']],['Milagro','E',2,'❤',['cura3']],['Martillo de guerra','O',4,'❤',['muerde','codicia']],['Fortín del norte','L',5,'💀',['defiende','protag']]],
+  [['Sumo sacerdote','C',4,'❤',['cura2','protag']],['Cruzada','E',6,'❤❤💀',['drena1']],['Cáliz dorado','O',3,'',['cura1','bucea']],['Atalaya','L',4,'',['explora','emboscada']]],
+  [['Gran maestre','C',7,'❤❤❤',[]],['Juicio final','E',5,'❤❤',['destruye']],['Escudo de la fe','O',5,'❤',['defiende']],['Catedral','L',3,'',['cura2']]],
+  [['Reina del alba','C',7,'❤❤💀',['protag']],['Carga final','E',6,'❤❤',['corre','muerde']],['Espada del rey','O',5,'❤',['super']],['Bastión eterno','L',6,'💀',['defiende','cura1']]],
+  [['El Primer Caballero','C',8,'❤❤❤💀',['destruye']],['Amanecer','E',5,'❤',['cura3','protag']],['Pegaso blanco','C',4,'',['corre','bucea']],['Ciudad celestial','L',7,'❤❤💀',['defiende']]]
+ ]}
+];
+BOOKS.forEach(b=>{ b.pages=[]; b.ch.forEach((chap,ci)=>chap.forEach(([title,type,power,cost,ab])=>b.pages.push({i:b.pages.length,n:b.pages.length+1,ch:ci+1,title,type,power,cost,ab,book:b}))); });
+
+/* ================= MODO SOLITARIO =================
+   Villanos y Esbirros de EJEMPLO (los oficiales están en imágenes en duelbooks.com/solo; reemplazar cuando los tengamos).
+   Los esbirros se tratan como páginas. Esbirro: [título, tipo, poder, coste, habilidades, nivel] */
+const MINIONS=[
+ ['Rata gigante','C',2,'',[],1],['Goblin ladrón','C',1,'',['codicia','drena1'],1],
+ ['Esqueleto','C',3,'',[],2],['Trampa de pinchos','O',2,'',['emboscada'],2],
+ ['Lobo sombrío','C',3,'',['corre'],3],['Asalto en el camino','E',3,'',['muerde'],3],
+ ['Orco bruto','C',4,'❤',[],4],['Murciélago vampiro','C',2,'',['drena2'],4],
+ ['Hechicera oscura','C',4,'❤',['super'],5],['Pantano maldito','L',4,'',['emboscada'],5],
+ ['Troll del puente','C',6,'❤❤',['defiende'],6],['Emboscada nocturna','E',4,'❤',['muerde','drena1'],6],
+ ['Caballero negro','C',6,'❤',['corre'],7],['Torre del nigromante','L',5,'❤',['protag','destruye'],7],
+ ['Gólem de piedra','C',7,'❤❤',['defiende'],8],['Plaga','E',5,'❤',['drena2'],8],
+ ['Mantícora','C',7,'❤❤',['corre','muerde'],9],['Espada maldita','O',5,'❤',['super'],9],
+ ['Gigante de escarcha','C',8,'❤❤',[],10],['Eclipse','E',6,'❤❤',['emboscada','drena1'],10],
+ ['Hidra','C',8,'❤❤❤',['rastrea','explora'],11],['Fortaleza oscura','L',7,'❤❤',['destruye','protag'],11],
+ ['Dragón negro','C',9,'❤❤❤',['corre'],12],['Apocalipsis','E',8,'❤❤❤',['destruye','drena2'],12]
+].map(([title,type,power,cost,ab,lvl],i)=>({i,n:i+1,ch:0,title,type,power,cost,ab,lvl,minion:true}));
+/* Cada villano tiene una habilidad que se activa después de asignar al protagonista y dura hasta el final del combate */
+const VILLAINS=[
+ {name:'El Rey Liche',emoji:'☠️',color:'#a08cd8',lives:20,text:'Sus esbirros criatura obtienen +1 de poder.',
+  apply(me,you,L){if(me.pg.type==='C'){me.power++;L.push('☠️ <b>Rey Liche:</b> su criatura obtiene +1 de poder.');}}},
+ {name:'La Bruja del Pantano',emoji:'🧙',color:'#3fa36b',lives:18,text:'Su maldición te quita 1❤ cada turno.',
+  apply(me,you,L){you.p.lives--;L.push('🧙 <b>Maldición de la Bruja:</b> perdés 1❤.');}},
+ {name:'El Señor de la Guerra',emoji:'🪓',color:'#e67e22',lives:20,text:'Si vos sos el protagonista, su esbirro obtiene +2 de poder.',
+  apply(me,you,L){if(S.protag===0){me.power+=2;L.push('🪓 <b>Señor de la Guerra:</b> su esbirro obtiene +2 contra el protagonista.');}}},
+ {name:'El Dragón Ancestral',emoji:'🐲',color:'#e74c3c',lives:25,text:'Empieza con 25❤. Si su esbirro gana el combate, destruye tu página.',destroyOnWin:true,apply(){}}
+];
+const DIFFS={facil:{n:'Fácil',ic:'🛡️',max:4},normal:{n:'Normal',ic:'⚔️',max:8},dificil:{n:'Difícil',ic:'💀',max:12}};
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+
+const TYPES={C:['🐾','Criatura'],O:['⚔️','Objeto'],E:['✨','Evento'],L:['🏰','Lugar']};
+/* Ícono de cada página según su nombre (si no coincide nada, usa el ícono del tipo) */
+const ICONS=[[/rata/i,'🐀'],[/goblin/i,'👺'],[/esqueleto/i,'💀'],[/trampa/i,'🪤'],[/lobo/i,'🐺'],[/orco/i,'👹'],[/murciélago/i,'🦇'],[/hechicera|nigromante/i,'🧙'],[/troll|gólem|gigante/i,'🗿'],[/plaga/i,'🦠'],[/mantícora/i,'🦂'],[/hidra/i,'🐍'],[/eclipse/i,'🌑'],[/apocalipsis/i,'☄️'],[/pantano/i,'🏞️'],[/caballero negro/i,'🖤'],
+ [/drag|wyrm|wyvern|cría/i,'🐉'],[/fénix|huevo/i,'🥚'],[/jinete|caballer|escudero|paladín|capitana|comandante|maestre/i,'🏇'],[/arquera/i,'🏹'],[/grifo|pegaso/i,'🦅'],
+ [/sacerdote|plegaria|milagro|juramento|luz|amanecer|capilla|catedral|monasterio/i,'🕯️'],[/reina|emperatriz|corona|trono|cetro|rey/i,'👑'],[/espada|lanza|lancero|garra|martillo/i,'🗡️'],[/escudo|armadura|yelmo|escamas|arnés/i,'🛡️'],
+ [/mapa/i,'🗺️'],[/cáliz|reliquia|ojo|corazón/i,'💎'],[/estandarte/i,'🚩'],[/meteor|tormenta|lluvia/i,'☄️'],[/erupción|ira|volcán|magma|lava|incendio|llamarada|chispa|brasas|fuego|ceniza/i,'🔥'],
+ [/castillo|fortaleza|fortín|ciudadela|bastión|muralla|atalaya|torre|templo|forja/i,'🏯'],[/ciudad|capital|puerto|aldea/i,'🏘️'],[/nido/i,'🪺'],[/juicio|fin de/i,'⚖️'],[/asedio|carga|cruzada|saqueo|torneo|emboscada|campo/i,'⚔️'],[/valle|cráter|grieta|bosque|puente/i,'🏞️']];
+const cardIcon=pg=>(ICONS.find(([r])=>r.test(pg.title))||[0,TYPES[pg.type][0]])[1];
+const legendHTML=()=>`<div class="legend">${Object.entries(TYPES).map(([k,[ic,n]])=>`<span class="t-${k}">${ic} ${n}</span>`).join('')}</div>`;
+const ABIL={
+ protag:'👑 Te convertís en protagonista.',
+ corre:'🏃 Corre: solo la bloquean páginas que corren; hace su daño completo.',
+ defiende:'🛡 Defiende: no ataca, solo bloquea.',
+ rastrea:'🐾 Rastrea: +1 si el villano tiene una criatura.',
+ explora:'🗺️ Explora: +1 si el villano tiene un lugar.',
+ codicia:'💰 Codicia: +1 si el villano tiene un objeto.',
+ bucea:'🌊 Bucea: +1 si el villano tiene un evento.',
+ super:'🎲 Superpoder: tirá un d6 y sumalo.',
+ muerde:'🦷 Muerde: la selección del villano obtiene −1.',
+ emboscada:'🕸️ Emboscada: si comparte tipo con el villano, su poder pasa a 0.',
+ destruye:'💥 Al final del combate, si ganaste, destruí la página del villano.'
+};
+function abText(a){const m=a.match(/^(cura|drena)(\d+)$/);if(m)return m[1]==='cura'?`💚 Ganás ${m[2]}❤.`:`🩸 El villano pierde ${m[2]}❤.`;return ABIL[a]||a;}
+const hearts=c=>(c.match(/❤/g)||[]).length;
+const skulls=c=>(c.match(/💀/g)||[]).length;
+const d6=()=>1+Math.floor(Math.random()*6);
+const has=(pg,a)=>pg.ab.includes(a);
+
+/* ================= MOTOR ================= */
+let S=null, UI={screen:'menu',mode:'cpu',books:[0,1],names:['Jugador 1','Jugador 2'],villain:0,diff:'normal',modal:null,pending:null};
+
+function newGame(){
+ const mk=i=>({name:UI.mode==='cpu'&&i===1?'CPU':UI.mode==='solo'&&i===0?'Héroe':UI.mode==='villain'&&i===0?'Héroe (CPU)':(UI.names[i]||'Jugador '+(i+1)),book:BOOKS[UI.books[i]],lives:20,destroyed:new Set(),chapter:null,dice:[],sel:null,cpu:(UI.mode==='cpu'&&i===1)||(UI.mode==='villain'&&i===0)});
+ S={mode:UI.mode,turn:1,twoDice:false,twoDiceNext:false,protag:Math.random()<.5?0:1,phase:'roll',players:[mk(0),UI.mode==='solo'||UI.mode==='villain'?mkVillain():mk(1)],log:[],selecting:0,winner:null,result:null,xp:0,diff:DIFFS[UI.diff],coach:!!UI.coach&&UI.mode==='cpu',surrendered:null};
+ S.log=[`Se sorteó el protagonista: <span class="hl">${S.players[S.protag].name}</span> 👑`];
+}
+function mkVillain(){
+ const v=VILLAINS[UI.villain],max=DIFFS[UI.diff].max;
+ const book={name:v.name,short:'Esbirro',emoji:v.emoji,color:v.color,blurb:v.text};
+ book.pages=MINIONS.map(m=>({...m,book}));
+ const pool=book.pages.filter(m=>m.lvl<=max).map(m=>m.i);
+ return {name:v.name,book,lives:v.lives,destroyed:new Set(),chapter:null,dice:[],sel:null,villain:v,pool,deck:shuffle([...pool]),discard:[],hand:[]};
+}
+/* Modo Villano: el jugador tiene una mano de 3 esbirros */
+function drawOne(v,L){
+ if(!v.deck.length){v.deck=shuffle(v.discard.filter(i=>!v.destroyed.has(i)&&!v.hand.includes(i)));v.discard=[];if(v.deck.length)L.push('🔄 Se baraja tu mazo de esbirros.');}
+ return v.deck.length?v.deck.shift():null;
+}
+function refillHand(v,L){
+ v.hand=v.hand.filter(i=>!v.destroyed.has(i));
+ while(v.hand.length<3){const i=drawOne(v,L);if(i==null)break;v.hand.push(i);}
+ for(let t=0;t<60&&v.hand.length&&!v.hand.some(i=>canSelect(v,i));t++){
+  const bad=v.hand.shift();v.discard.push(bad);L.push(`No podés pagar «${v.book.pages[bad].title}»: se descarta y robás otra.`);
+  const i=drawOne(v,L);if(i!=null)v.hand.push(i);
+ }
+ if(!v.hand.some(i=>canSelect(v,i))){v.lives=0;L.push('<span class="bad">¡Te quedaste sin esbirros que puedas pagar!</span>');}
+}
+/* Revela esbirros hasta que el villano pueda pagar uno */
+function drawMinion(v){
+ const L=[];
+ for(let t=0;t<200;t++){
+  if(!v.deck.length){
+   v.deck=shuffle(v.discard.filter(i=>!v.destroyed.has(i)));v.discard=[];
+   if(!v.deck.length)break;
+   L.push('🔄 Se baraja el mazo de esbirros.');
+  }
+  const i=v.deck.shift(),m=v.book.pages[i];
+  if(v.lives<hearts(m.cost)){v.discard.push(i);L.push(`<span class="good">${v.name} no puede pagar «${m.title}» (${m.cost}): se descarta.</span>`);continue;}
+  v.sel=i;v.discard.push(i);
+  L.push(`${v.villain.emoji} ${v.name} revela un esbirro: <span class="hl">«${m.title}» (Nv. ${m.lvl})</span>`);
+  return L;
+ }
+ v.lives=0;L.push(`<span class="good">¡${v.name} se quedó sin esbirros jugables!</span>`);return L;
+}
+const chapterIdx=ch=>[0,1,2,3].map(k=>(ch-1)*4+k);
+function canSelect(p,i){
+ const pg=p.book.pages[i]; if(!pg||p.destroyed.has(i))return false;
+ if(p.lives<hearts(pg.cost))return false;
+ if(skulls(pg.cost)>p.book.pages.length-p.destroyed.size-1)return false;
+ return true;
+}
+function doRoll(){
+ const L=[];let six=false;
+ S.players.forEach(p=>{
+  if(p.villain)return;
+  for(let t=0;t<40;t++){
+   const dice=S.twoDice?[d6(),d6()]:[d6()];
+   if(!S.twoDice&&dice[0]===6)six=true;
+   const ch=dice.reduce((a,b)=>a+b,0);
+   if(chapterIdx(ch).some(i=>canSelect(p,i))){p.chapter=ch;p.dice=dice;L.push(`🎲 ${p.name} tira ${dice.join(' + ')} → <span class="hl">capítulo ${ch}</span>`);break;}
+   p.lives--;L.push(`<span class="bad">${p.name} cae en el capítulo ${ch} sin páginas jugables: pierde 1❤ y vuelve a tirar.</span>`);
+   if(p.lives<=0)break;
+  }
+ });
+ if(six&&!S.twoDice){S.twoDiceNext=true;L.push('<span class="hl">¡Salió un 6! Desde el próximo turno se tiran 2 dados (capítulos 2 a 12).</span>');}
+ S.log=L;
+ if(checkEnd())return;
+ S.players.forEach(p=>{if(p.cpu)p.sel=cpuPick(p,S.players[S.players.indexOf(p)^1]);});
+ UI.pending=null;
+ if(S.mode==='villain'){const v=S.players[1];refillHand(v,S.log);if(checkEnd())return;S.phase='select';S.selecting=1;}
+ else if(S.mode!=='hot'){S.phase='select';S.selecting=0;}
+ else{S.phase='pass';S.passTo=0;}
+}
+function cpuPick(p,opp,noNoise){
+ let best=null,bs=-1e9;
+ chapterIdx(p.chapter).filter(i=>canSelect(p,i)).forEach(i=>{
+  const pg=p.book.pages[i];let s=pg.power;
+  pg.ab.forEach(a=>{const m=a.match(/^(cura|drena)(\d+)$/);
+   if(m)s+=m[1]==='drena'?+m[2]:+m[2]*(p.lives<10?1:.6);
+   else s+={super:3.5,rastrea:.4,explora:.4,codicia:.4,bucea:.4,muerde:1,emboscada:1,corre:.8,protag:.3,destruye:.7,defiende:-.4}[a]||0;});
+  const h=hearts(pg.cost);s-=h*.8+skulls(pg.cost)*.9;
+  if(p.lives-h<=3)s-=h*3;
+  s+=Math.random()*(noNoise?0:(S&&S.coach?4:1.2));
+  if(s>bs){bs=s;best=i;}
+ });
+ return best;
+}
+function destroyNear(p,from,L){
+ const N=p.book.pages.length;let b=from-1,a=from+1;
+ while(b>=0&&(p.destroyed.has(b)||b===p.sel))b--;
+ while(a<N&&(p.destroyed.has(a)||a===p.sel))a++;
+ const cands=[b,a].filter(x=>x>=0&&x<N);if(!cands.length)return;
+ cands.sort((x,y)=>p.book.pages[x].power-p.book.pages[y].power);
+ const k=cands[0];p.destroyed.add(k);L.push(`💀 ${p.name} destruye «${p.book.pages[k].title}» (p.${k+1}) para pagar el coste.`);
+}
+function resolve(pre=[]){
+ const L=[...pre],P=S.players;
+ const sd=P.map(p=>({p,pg:p.book.pages[p.sel],power:p.book.pages[p.sel].power}));
+ L.push(`Se revelan: <span class="hl">${sd[0].pg.title}</span> vs <span class="hl">${sd[1].pg.title}</span>`);
+ const pr=sd.map(s=>has(s.pg,'protag'));
+ if(pr[0]&&pr[1]){S.protag^=1;L.push(`👑 Ambos reclaman el protagonismo: se lo queda ${P[S.protag].name} (el que no lo era).`);}
+ else if(pr[0]||pr[1]){const w=pr[0]?0:1;if(S.protag!==w)L.push(`👑 ${P[w].name} se convierte en protagonista.`);S.protag=w;}
+ const V=P[1].villain;
+ if(V){L.push(`${V.emoji} Se activa ${V.name}: <i>${V.text}</i>`);V.apply(sd[1],sd[0],L);}
+ [S.protag,S.protag^1].forEach(i=>{
+  const s=sd[i],v=sd[i^1],p=s.p,h=hearts(s.pg.cost),k=skulls(s.pg.cost);
+  L.push(`<b>${p.name}</b> activa «${s.pg.title}»${s.pg.cost?` pagando ${s.pg.cost}`:''}.`);
+  p.lives-=Math.min(h,p.lives);
+  for(let j=0;j<k;j++)destroyNear(p,p.sel,L);
+  s.pg.ab.forEach(a=>{
+   const m=a.match(/^(cura|drena)(\d+)$/);
+   if(m){if(m[1]==='cura'){p.lives+=+m[2];L.push(`<span class="good">💚 ${p.name} gana ${m[2]}❤.</span>`);}else{v.p.lives-=+m[2];L.push(`<span class="bad">🩸 ${v.p.name} pierde ${m[2]}❤.</span>`);}return;}
+   const bonus={rastrea:'C',explora:'L',codicia:'O',bucea:'E'};
+   if(bonus[a]){if(v.pg.type===bonus[a]){s.power++;L.push(`+1 de poder para «${s.pg.title}» (${TYPES[v.pg.type][1].toLowerCase()} enemiga).`);}return;}
+   if(a==='super'){const r=d6();s.power+=r;L.push(`🎲 Superpoder: sale ${r}, «${s.pg.title}» obtiene +${r}.`);}
+   if(a==='muerde'){v.power--;L.push(`🦷 «${v.pg.title}» es mordida: −1 de poder.`);}
+   if(a==='emboscada'&&v.pg.type===s.pg.type){v.power=0;L.push(`⚠️ ¡Emboscada! El poder de «${v.pg.title}» pasa a 0.`);}
+  });
+ });
+ const pw=sd.map(s=>Math.max(0,s.power)),run=sd.map(s=>has(s.pg,'corre')),def=sd.map(s=>has(s.pg,'defiende'));
+ L.push(`⚔️ Combate: <span class="hl">${pw[0]}</span> contra <span class="hl">${pw[1]}</span>`);
+ let win=pw[0]>pw[1]?0:pw[1]>pw[0]?1:-1;const dmg=[0,0];
+ if(run[0]!==run[1]){L.push('🏃 Una página corre y no puede ser bloqueada: cada una hace su daño completo.');[0,1].forEach(i=>{if(!def[i])dmg[i^1]+=pw[i];});}
+ else if(win>=0&&!def[win])dmg[win^1]=pw[win]-pw[win^1];
+ else if(win>=0&&def[win])L.push(`🛡 ${P[win].name} gana defendiendo: no hace daño.`);
+ [0,1].forEach(i=>{if(dmg[i]>0){P[i].lives-=dmg[i];L.push(`<span class="bad">${P[i].name} pierde ${dmg[i]}❤.</span>`);}});
+ if(win>=0){S.protag=win;L.push(`🏆 <span class="hl">${P[win].name}</span> gana el combate y es protagonista.`);
+  if((has(sd[win].pg,'destruye')||(win===1&&V&&V.destroyOnWin))&&!P[win^1].destroyed.has(P[win^1].sel)){P[win^1].destroyed.add(P[win^1].sel);L.push(`🔥 «${sd[win^1].pg.title}» queda destruida.`);}
+  if(V&&win===0&&S.mode==='solo'){S.xp+=sd[1].pg.lvl;L.push(`<span class="hl">⭐ Derrotaste a un esbirro de nivel ${sd[1].pg.lvl}: +${sd[1].pg.lvl}★ de experiencia.</span>`);}
+ }else L.push('Empate en el combate: nadie pierde vidas.');
+ S.result={sd:sd.map((s,i)=>({...s,final:pw[i]}))};
+ S.log=L;S.phase='result';checkEnd();
+}
+function checkEnd(){
+ const P=S.players,dead=P.map(p=>p.lives<=0);
+ P.forEach(p=>{if(p.lives<0)p.lives=0;});
+ if(dead[0]||dead[1]){S.winner=dead[0]&&dead[1]?S.protag:(dead[0]?1:0);S.phase='over';
+  if(S.mode==='solo'&&!S.saved){S.saved=true;if(S.winner===0)S.xp+=5*(S.diff.max/4);
+   const t=store.get('xpTotal',0)+(S.winner===0?S.xp:0);store.set('xpTotal',t);S.xpTotal=t;}
+  return true;}
+ return false;
+}
+function nextTurn(){
+ S.turn++;if(S.twoDiceNext){S.twoDice=true;S.twoDiceNext=false;}
+ S.players.forEach(p=>{p.sel=null;p.chapter=null;});S.result=null;S.log=[];S.phase='roll';UI.pending=null;
+}
+function confirmPick(){
+ const p=S.players[S.selecting];p.sel=UI.pending;UI.pending=null;
+ if(S.mode==='cpu')resolve();
+ else if(S.mode==='solo')resolve(drawMinion(S.players[1]));
+ else if(S.mode==='villain'){const v=S.players[1];v.hand=v.hand.filter(i=>i!==v.sel);v.discard.push(v.sel);resolve([`${v.villain.emoji} Mandás a «${v.book.pages[v.sel].title}» (Nv. ${v.book.pages[v.sel].lvl}) al combate.`]);}
+ else if(S.selecting===0){S.phase='pass';S.passTo=1;}
+ else{S.phase='pass';S.passTo='reveal';}
+}
+
+/* ================= INTERFAZ ================= */
+const $=s=>document.querySelector(s);
+const LINKS=[['🛒','Tienda oficial','https://duelbooks.com/'],['📚','Todos los Duelbooks','https://duelbooks.com/productos/'],['📜','Reglas oficiales','https://duelbooks.com/reglas/'],['🏆','Eventos y torneos','https://duelbooks.com/events/'],['💬','Comunidad en Telegram','https://telegram.me/duelbooks'],['🚀','Campaña en Verkami','https://vkm.is/duelbooks'],['✉️','Contacto','mailto:duelbooks@gmail.com']];
+const linksHTML=()=>`<div class="links">${LINKS.map(([i,t,u])=>`<a href="${u}" target="_blank" rel="noopener">${i} ${t}</a>`).join('')}</div>`;
+const CREDITS=`<p><b>Duelbooks</b> es un juego de mesa creado por <b>Sergio y Emilio</b> (Sevilla, España). El juego, su nombre, sus reglas, libros, ilustraciones y marca pertenecen a sus creadores. © Duelbooks · Todos los derechos reservados.</p>
+<p>Esta es una <b>app de fans, no oficial y sin fines de lucro</b>. No vende ni cobra nada. Su único objetivo es que más personas aprendan a jugar de forma fácil y rápida, y se sumen al juego.</p>
+<p>Los libros, villanos y esbirros de esta app son <b>de ejemplo</b>, inventados para practicar las reglas: no son el contenido oficial. Para jugar de verdad, ¡conseguí tus Duelbooks en la tienda oficial!</p>`;
+const CTA=(t='🛒 Conseguí tus Duelbooks en la tienda oficial')=>`<a class="cta" href="https://duelbooks.com/" target="_blank" rel="noopener">${t}</a>`;
+const MODES={cpu:'🤖 vs CPU',hot:'👥 2 jugadores',solo:'🧙 Solitario',villain:'😈 Modo Villano'};
+const HUMAN=()=>S.mode==='villain'?1:0;
+
+function cardHTML(pg,cls='',attr=''){
+ const [ic,tn]=TYPES[pg.type];
+ return `<div class="card t-${pg.type} ${cls}" style="--bc:${pg.book.color}" ${attr}>
+  <div class="top"><span class="pow">${pg.power}</span><span class="cost ${pg.cost?'':'free'}">${pg.cost||'gratis'}</span></div>
+  <div class="ttl"><span>${pg.title}</span><span class="ti">${cardIcon(pg)}</span></div><div class="typ">${ic} ${tn} · ${pg.minion?'Nv. '+pg.lvl:'cap. '+pg.ch}</div>
+  <div class="ab ${pg.ab.length?'':'empty'}">${pg.ab.length?pg.ab.map(a=>`<div>${abText(a)}</div>`).join(''):'Sin habilidades. Pura fuerza bruta.'}</div>
+  <div class="foot"><span class="bk">${pg.book.emoji} ${pg.book.short}</span><span>${pg.minion?'★'.repeat(Math.ceil(pg.lvl/4)):'p.'+pg.n}</span></div></div>`;
+}
+function render(){
+ const app=$('#app');$('#actions')?.remove();let act;
+ if(UI.screen==='menu'){app.innerHTML=menuHTML();act=`<button onclick="UI.coach=false;start()">${{solo:'🧙 Enfrentar al Villano',villain:'😈 Empezar como Villano'}[UI.mode]||'⚔️ Empezar duelo'}</button>`;}
+ else if(UI.screen==='tutorial'){app.innerHTML=tutorialHTML();act=tutActions();}
+ else{app.innerHTML=gameHTML();act=actionsHTML();}
+ document.body.insertAdjacentHTML('beforeend',`<div class="actions" id="actions">${act}</div>`);
+ renderModal();
+}
+
+/* ---------- MENÚ ---------- */
+const opt=(k,t,s)=>`<button class="opt ${UI.mode===k?'on':''}" onclick="UI.mode='${k}';render()">${t}<small>${s}</small></button>`;
+const nameInput=i=>`<input value="${UI.names[i]}" oninput="UI.names[${i}]=this.value" style="margin-bottom:10px">`;
+const bookOpts=pi=>BOOKS.map((b,i)=>`<button class="opt ${UI.books[pi]===i?'on':''}" onclick="UI.books[${pi}]=${i};render()" style="${UI.books[pi]===i?`border-color:${b.color}`:''}"><span class="sw" style="background:${b.color}"></span>${b.emoji} ${b.name}<small>${b.blurb}</small><small style="color:${b.color}">${Object.entries(b.stats).map(([k,v])=>`${k} ${'■'.repeat(v)}${'□'.repeat(5-v)}`).join('<br>')}</small></button>`).join('');
+function menuHTML(){
+ const m=UI.mode;
+ return `<h1>DUELO DE LIBROS</h1><div class="sub">App de práctica <b>no oficial</b> para aprender a jugar <b style="color:var(--text)">Duelbooks</b> · <a href="#" style="color:var(--gold)" onclick="UI.modal='rules';render();return false">Reglas rápidas</a></div>
+ <button class="tutbtn" onclick="openTutorial()"><span class="big2">🎓</span><span><b>¿Primera vez? Aprendé a jugar</b><small>Tutorial paso a paso, fácil y en 2 minutos</small></span></button>
+ <div class="box"><h3>Modo de juego</h3><div class="row">
+  ${opt('cpu','🤖 Contra la CPU','Duelo clásico 1 vs 1')}
+  ${opt('hot','👥 2 jugadores','Mismo celular / PC, pasándolo')}
+  ${opt('solo','🧙 Solitario: Héroe','Derrotá a los Esbirros del Villano')}
+  ${opt('villain','😈 Ser el Villano','Manejá los Esbirros contra un Héroe')}</div></div>
+ ${m==='villain'?`<div class="box"><h3>Libro del Héroe (lo maneja la CPU)</h3><div class="row">${bookOpts(0)}</div></div>${villainMenu(true)}`
+ :`<div class="box"><h3>${m==='hot'?'Jugador 1':'Tu libro'}</h3>${m==='hot'?nameInput(0):''}<div class="row">${bookOpts(0)}</div></div>
+ ${m==='solo'?villainMenu(false):`<div class="box"><h3>${m==='cpu'?'Libro de la CPU':'Jugador 2'}</h3>${m==='hot'?nameInput(1):''}<div class="row">${bookOpts(1)}</div></div>`}`}
+ <div class="box about"><h3>Créditos y enlaces oficiales</h3>${CREDITS}${CTA()}${linksHTML()}</div>`;
+}
+function villainMenu(me){
+ return `<div class="box"><h3>${me?'¿Qué Villano querés ser?':'Elegí tu Villano'}</h3><div class="row">${VILLAINS.map((v,i)=>`<button class="opt ${UI.villain===i?'on':''}" style="${UI.villain===i?`border-color:${v.color}`:''}" onclick="UI.villain=${i};render()"><span class="sw" style="background:${v.color}"></span>${v.emoji} ${v.name}<small>${v.text}</small><small style="color:${v.color}">❤ ${v.lives} vidas</small></button>`).join('')}</div></div>
+ <div class="box"><h3>${me?'Tu ejército de esbirros':'Elegí tu desafío'}</h3><div class="row">${Object.entries(DIFFS).map(([k,d])=>`<button class="opt ${UI.diff===k?'on':''}" onclick="UI.diff='${k}';render()">${d.ic} ${d.n}<small>Esbirros de nivel 1 – ${d.max}</small></button>`).join('')}</div>
+ <p style="color:var(--muted);font-size:13px;margin-top:12px">${me?'😈 Cada turno tenés una mano de 3 esbirros y elegís cuál mandar al combate. Más niveles = esbirros más fuertes.':`⭐ Experiencia acumulada: <b style="color:var(--gold)">${store.get('xpTotal',0)}★</b>`}</p></div>`;
+}
+
+/* ---------- PARTIDA ---------- */
+function topBar(){
+ const P=S.players,vil=P[1].villain;
+ const b0=S.mode==='villain'?'📕 Héroe':S.mode==='hot'?'📕 '+P[0].name:'📕 Mi libro', b1=vil?'💀 Esbirros':'📗 '+P[1].name;
+ return `${S.phase!=='over'?`<div class="gtop"><button class="sec mini" onclick="UI.modal='surrender';render()">🏳️ Rendirse</button><span class="md">${S.coach?'🎓 Práctica guiada':MODES[S.mode]}</span><button class="sec mini" onclick="UI.modal='exit';render()">🚪 Salir</button></div>`:''}
+ <div class="bar">${P.map((p,i)=>`<div class="pl ${S.protag===i?'prot':''} ${HUMAN()===i&&S.mode!=='hot'?'me':''}" style="border-left-color:${p.book.color}"><div class="info"><div class="nm">${S.protag===i?'👑 ':''}${p.name}</div><div class="bk">${p.villain?`${S.diff.ic} ${S.diff.n} · Nv. 1–${S.diff.max}`:`${p.book.emoji} ${p.book.name}`}</div></div><span class="lv">❤ ${p.lives}</span></div>`).join('')}</div>
+ <div class="phase"><span>Turno ${S.turn} · ${{roll:'Fase de asignación',select:'Fase de selección',pass:'Fase de selección',result:'Activación y combate',over:'Fin del duelo'}[S.phase]}${S.twoDice?' · 🎲🎲':''}${S.mode==='solo'?` · ⭐ ${S.xp}★`:''}</span>
+ <span><button class="sec mini" onclick="UI.modal='book0';render()">${b0}</button> <button class="sec mini" onclick="UI.modal='book1';render()">${b1}</button> <button class="sec mini" onclick="UI.modal='rules';render()">?</button></span></div>`;
+}
+function slot(i){
+ const p=S.players[i];let inner;
+ if((S.phase==='result'||S.phase==='over')&&S.result){const s=S.result.sd[i];inner=cardHTML(s.pg,'flip')+`<div class="pw">Poder final: ${s.final}</div>`;}
+ else if(p.sel!=null)inner=`<div class="card back" style="border-color:${p.book.color};--bc:${p.book.color}">${p.book.emoji}</div><div class="pw">Elegida</div>`;
+ else if(p.villain)inner=`<div class="card back" style="border-color:${p.book.color};--bc:${p.book.color};flex-direction:column;gap:6px">${p.villain.emoji}<span style="font-size:12px;color:var(--muted)">Mazo de esbirros<br>${p.deck.length} cartas</span></div><div class="pw">${S.mode==='villain'?'Tu mazo':'Revela al elegir vos'}</div>`;
+ else inner=`<div class="slot">${p.chapter?`Capítulo ${p.chapter}`:'Esperando…'}</div>`;
+ return `<div class="slotwrap"><span class="lbl">${p.name}${p.dice.length&&p.chapter?` · 🎲 ${p.dice.join('+')}`:''}</span>${inner}</div>`;
+}
+function coachHTML(){
+ const p=S.players[0];
+ const t={roll:`<b>Paso 1 · Asignación.</b> Tocá <b>«Tirar dado»</b>. El número que salga es el capítulo de tu libro que vas a poder usar este turno.${S.twoDice?' Ahora se tiran 2 dados y se suman: así llegás a los capítulos 7 a 12.':''}`,
+  select:`<b>Paso 2 · Selección.</b> Estas son las 4 páginas del capítulo ${p.chapter}. Las grises no las podés pagar o están destruidas. La que brilla en <b>verde 💡</b> es una buena opción. Tocá una página y después <b>«Confirmar»</b>. La CPU ya eligió en secreto.`,
+  result:`<b>Pasos 3 y 4 · Activación y combate.</b> Primero actúa el 👑 protagonista (paga el coste y aplica habilidades), después el otro. Gana quien tenga más poder y el perdedor pierde la diferencia en ❤. Leé el resumen y tocá <b>«Siguiente turno»</b>.`,
+  over:`<b>¡Terminaste tu primera partida!</b> Ya sabés lo básico. Probá los modos Solitario o Villano, o retá a un amigo en «2 jugadores».`}[S.phase];
+ return t?`<div class="coach">🎓 ${t}</div>`:'';
+}
+function overHTML(){
+ const w=S.winner,P=S.players,sur=S.surrendered!=null?`<div class="sub">🏳️ ${P[S.surrendered].name} se rindió.</div>`:'';
+ if(S.mode==='solo')return (w===0?`<div class="big">🏆</div><h1>¡Victoria!</h1><div class="sub">Derrotaste a ${P[1].villain.emoji} ${P[1].name} en ${S.diff.ic} ${S.diff.n}.<br>Ganaste <b style="color:var(--gold)">${S.xp}★</b> de experiencia (incluye bonus por victoria) · Total: ${S.xpTotal}★</div>`
+  :`<div class="big">💀</div><h1>¡Perdiste!</h1><div class="sub">Te quedaste sin vidas frente a ${P[1].villain.emoji} ${P[1].name}. La experiencia de esta partida no se suma.</div>`)+sur;
+ if(S.mode==='villain')return (w===1?`<div class="big">😈</div><h1>¡Ganaste como Villano!</h1><div class="sub">Tus esbirros derrotaron al Héroe y su ${P[0].book.emoji} ${P[0].book.name}.</div>`
+  :`<div class="big">🛡️</div><h1>El Héroe te derrotó</h1><div class="sub">El reino de ${P[1].villain.emoji} ${P[1].name} cayó. ¡Probá otra vez!</div>`)+sur;
+ return `<div class="big">🏆</div><h1>${P[w].name} gana</h1><div class="sub">con ${P[w].book.emoji} ${P[w].book.name}</div>`+sur;
+}
+function gameHTML(){
+ let h=topBar();
+ if(S.phase==='over')h+=overHTML();
+ if(S.phase==='pass'){
+  const msg=S.passTo==='reveal'?'Los dos eligieron. ¡Pónganse juntos para revelar!':`Pasale el dispositivo a <b>${S.players[S.passTo].name}</b>.<br>Que el otro no mire 👀`;
+  return h+`<div class="box center" style="padding:40px 16px"><div class="big">📖</div><p style="font-size:17px;line-height:1.6">${msg}</p></div>`;
+ }
+ if(S.coach)h+=coachHTML();
+ h+=`<div class="arena">${slot(0)}<div class="vs">VS</div>${slot(1)}</div>`;
+ if(S.log.length)h+=`<div class="log">${S.log.map((l,k)=>`<div style="animation-delay:${S.phase==='result'?k*.12:0}s">${l}</div>`).join('')}</div>`;
+ if(S.phase==='select'){
+  const p=S.players[S.selecting],idxs=p.villain?p.hand:chapterIdx(p.chapter);
+  const hint=S.coach&&!p.villain?cpuPick(p,null,true):null;
+  h+=`<div class="phase"><span><b style="color:var(--text)">${p.name}</b>, ${p.villain?'elegí qué esbirro de tu mano mandás al combate':`elegí una página del capítulo ${p.chapter}`}</span></div>${legendHTML()}<div class="hand">${idxs.map(i=>{
+   const pg=p.book.pages[i],dead=p.destroyed.has(i),ok=canSelect(p,i);
+   return cardHTML(pg,`${dead?'dead':ok?'sel':'no'} ${UI.pending===i?'picked':''} ${i===hint&&UI.pending==null?'hint':''}`,ok?`onclick="UI.pending=${i};render()"`:'');}).join('')}</div>`;
+  if(p.villain)h+=`<p class="foot-note" style="margin-top:8px">El Héroe ya eligió en secreto. Las cartas grises no las podés pagar con tus ❤.</p>`;
+ }
+ if(S.phase==='roll'&&S.turn===1&&!S.coach&&S.log.length<2)h+=`<div class="log">${S.mode==='villain'?'Sos el Villano 😈: el Héroe tira el dado y elige su página; vos elegís qué esbirro mandar. ¡Dejalo sin vidas!':'Cada turno: tirás el dado para saber qué capítulo usás, elegís una página en secreto y se revelan a la vez. Gana el combate quien tenga más poder.'}</div>`;
+ if(S.phase==='over')h+=CTA('🛒 ¿Te gustó? Conseguí los Duelbooks originales')+`<p class="foot-note">App de fans sin fines de lucro · Duelbooks © sus creadores · <a href="#" onclick="UI.modal='about';render();return false">Créditos</a></p>`;
+ return h;
+}
+function actionsHTML(){
+ switch(S.phase){
+  case 'roll':return `<button onclick="doRoll();render()">🎲 ${S.mode==='villain'?'Que el Héroe tire el dado':'Tirar '+(S.twoDice?'2 dados':'dado')}</button>`;
+  case 'select':return `<button ${UI.pending==null?'disabled':''} onclick="confirmPick();render()">${UI.pending==null?(S.players[S.selecting].villain?'Elegí un esbirro':'Elegí una página'):'✔ Confirmar'}</button>`;
+  case 'pass':return `<button onclick="${S.passTo==='reveal'?'resolve()':'S.phase=\'select\';S.selecting=S.passTo'};render()">${S.passTo==='reveal'?'⚔️ Revelar':'Listo, soy '+S.players[S.passTo].name}</button>`;
+  case 'result':return `<button onclick="nextTurn();render()">Siguiente turno ➜</button>`;
+  case 'over':return `<button onclick="start()">🔁 ${S.mode==='hot'||S.mode==='cpu'?'Revancha':'Jugar de nuevo'}</button><button class="sec" onclick="UI.screen='menu';render()">Menú</button>`;
+ }
+}
+function surrender(i){S.surrendered=i;S.winner=i^1;S.phase='over';S.result=null;S.log=[`🏳️ ${S.players[i].name} se rindió.`];UI.modal=null;render();}
+
+/* ---------- VENTANAS ---------- */
+function renderModal(){
+ $('#ov')?.remove();if(!UI.modal)return;
+ let body='',close='Cerrar';
+ if(UI.modal==='rules')body=`<h2>Reglas rápidas</h2><div class="rules">
+ <p>Cada jugador tiene un libro de <b>12 capítulos × 4 páginas</b> y empieza con <b>20❤</b>. Pierde quien se queda sin ❤.</p>
+ <ul><li><b>1 · Asignación:</b> tirás un dado; el número es el capítulo del que podés elegir. Si alguien saca un 6, desde el turno siguiente se tiran 2 dados (capítulos 2–12).</li>
+ <li><b>2 · Selección:</b> elegís una página en secreto. Tenés que poder pagar su coste: ❤ son vidas, 💀 es destruir una página vecina de tu libro.</li>
+ <li><b>3 · Activación:</b> se revelan. El 👑 protagonista paga y aplica sus habilidades primero; después el otro.</li>
+ <li><b>4 · Combate:</b> gana quien tenga más poder; el perdedor pierde tantas ❤ como la diferencia. El ganador pasa a ser protagonista.</li></ul>
+ <p>Si caés en un capítulo sin páginas jugables, perdés 1❤ y volvés a tirar. Una página destruida no se puede volver a elegir. En empate de vidas a 0, gana el protagonista.</p>
+ <p><b>Colores de las páginas:</b></p>${legendHTML()}<p><b>Habilidades:</b></p><ul>${Object.values(ABIL).map(t=>`<li>${t}</li>`).join('')}<li>💚 Ganás N❤ · 🩸 El villano pierde N❤.</li></ul>
+ <p><b>🧙 Solitario (Héroe):</b> elegís Villano y desafío (Fácil Nv. 1–4, Normal 1–8, Difícil 1–12). Vos elegís tu página y el Villano revela un Esbirro; si no puede pagarlo, lo descarta y revela otro. Su habilidad dura hasta el final del combate. Cada esbirro derrotado te da ⭐ según su nivel.</p>
+ <p><b>😈 Ser el Villano:</b> al revés: el Héroe (CPU) juega con un libro y vos elegís cada turno uno de los 3 esbirros de tu mano. Ganás si lo dejás sin vidas.</p>
+ <p style="color:var(--muted)">«Villano» = tu oponente. En esta app, el coste 💀 destruye automáticamente la página vecina de menor poder. Reglas completas: <a href="https://duelbooks.com/reglas/" target="_blank" rel="noopener" style="color:var(--gold)">duelbooks.com/reglas</a></p></div>`;
+ else if(UI.modal==='about')body=`<h2>Créditos</h2><div class="rules">${CREDITS}</div>${CTA()}${linksHTML()}`;
+ else if(UI.modal==='surrender'){close='Cancelar';const hs=S.mode==='hot'?[0,1]:[HUMAN()];
+  body=`<h2>🏳️ Rendirse</h2><p class="rules">La partida termina y gana el rival. ¿Seguro?</p><div class="row">${hs.map(i=>`<button class="danger" onclick="surrender(${i})">${S.mode==='hot'?'Se rinde '+S.players[i].name:'Sí, me rindo'}</button>`).join('')}</div>`;}
+ else if(UI.modal==='exit'){close='Cancelar';
+  body=`<h2>🚪 Salir de la partida</h2><p class="rules">¿Volver al menú? Esta partida se va a perder.</p><div class="row"><button class="danger" onclick="UI.modal=null;UI.screen='menu';render()">Salir al menú</button></div>`;}
+ else{const p=S.players[+UI.modal.slice(4)];
+  if(p.villain)body=`<h2 style="color:${p.book.color}">${p.villain.emoji} ${p.name}</h2><p style="color:var(--muted);margin-bottom:10px">${p.villain.text} · Empieza con ${p.villain.lives}❤ · ${S.diff.ic} ${S.diff.n}</p>${legendHTML()}<div class="chap"><h4>Esbirros nivel 1 – ${S.diff.max} (${p.deck.length} en el mazo)</h4><div class="hand">${p.pool.map(i=>cardHTML(p.book.pages[i],p.destroyed.has(i)?'dead':'')).join('')}</div></div>`;
+  else body=`<h2 style="color:${p.book.color}">${p.book.emoji} ${p.book.name} — ${p.name}</h2><p style="color:var(--muted);margin-bottom:10px">${p.book.blurb}</p>${legendHTML()}`+p.book.ch.map((_,ci)=>`<div class="chap"><h4>Capítulo ${ci+1}</h4><div class="hand">${chapterIdx(ci+1).map(i=>cardHTML(p.book.pages[i],p.destroyed.has(i)?'dead':'')).join('')}</div></div>`).join('');}
+ document.body.insertAdjacentHTML('beforeend',`<div class="ov" id="ov" onclick="if(event.target.id==='ov'){UI.modal=null;render()}"><div class="ovbox">${body}<div class="center" style="margin-top:14px"><button class="sec" onclick="UI.modal=null;render()">${close}</button></div></div></div>`);
+}
+
+/* ---------- TUTORIAL PASO A PASO ---------- */
+const TB=()=>BOOKS[0], ENEMY=()=>BOOKS[1].pages[4];
+const TUT=[
+ {t:'¡Bienvenido a Duelbooks!',h:()=>`<div class="tvis">📖 <span class="vs">VS</span> 📖</div><p>Duelbooks es un juego de mesa donde <b>peleás con libros</b>. Cada jugador tiene su propio libro, lleno de criaturas, objetos, eventos y lugares.</p><p>Los dos empiezan con <b>20 ❤ vidas</b>. El que se queda sin vidas, pierde.</p><p>Una partida dura entre 15 y 20 minutos. ¡Vamos paso a paso!</p>`},
+ {t:'Tu libro 📖',h:()=>`<div class="chgrid">${Array.from({length:12},(_,i)=>`<div class="${i<6?'':'lock'}">Cap. ${i+1}${i<6?'':' 🔒'}</div>`).join('')}</div><p>Cada libro tiene <b>12 capítulos</b> y cada capítulo tiene <b>4 páginas</b>.</p><p>Cada turno, el dado decide <b>de qué capítulo</b> podés elegir. Al principio se tira 1 dado (capítulos 1 a 6). Los capítulos 7 a 12 🔒 se desbloquean más adelante.</p>`},
+ {t:'Las partes de una página',h:()=>`<div class="tcard">${cardHTML(TB().pages[9])}</div><ul class="parts"><li>🟡 <b>Poder</b> (el círculo): cuánta fuerza tiene en el combate.</li><li>❤ <b>Coste</b> (arriba a la derecha): lo que pagás para jugarla. «gratis» = no cuesta nada.</li><li>🔥 <b>Nombre e ícono</b> de la página.</li><li>✨ <b>Tipo y capítulo</b> al que pertenece.</li><li>📜 <b>Habilidades</b>: lo que hace además de pelear.</li><li>🏷️ <b>Etiqueta</b> del libro al que pertenece.</li></ul>`},
+ {t:'Los colores de las páginas 🎨',h:()=>`<p>Como en otros juegos de cartas, <b>el color te dice el tipo</b> de un vistazo:</p>${legendHTML()}<div class="hand">${[0,1,2,3].map(i=>cardHTML(TB().pages[i])).join('')}</div><p>Algunas habilidades dependen del tipo del rival. Por ejemplo, «Rastrea» da +1 si el rival juega una criatura 🐾.</p>`},
+ {t:'Fase 1 · Asignación 🎲',need:()=>UI.tDie!=null,h:()=>`<p>Cada turno empieza tirando el dado. <b>El número es el capítulo</b> del que vas a poder elegir.</p><div class="tvis">🎲 ${UI.tDie||'?'}</div>${UI.tDie?`<p class="okmsg">¡Sacaste un ${UI.tDie}! Este turno elegís del <b>capítulo ${UI.tDie}</b>.</p>`:`<div class="center"><button onclick="UI.tDie=d6();UI.tPick=null;UI.tRes=null;render()">🎲 Tirá el dado</button></div>`}<p class="muted">Dato: si alguien saca un <b>6</b>, desde el turno siguiente todos tiran <b>2 dados</b> y se suman. Así se llega a los capítulos 7 a 12.</p>`},
+ {t:'Fase 2 · Selección 👆',need:()=>UI.tPick!=null,h:()=>`<p>Tocá <b>una página</b> del capítulo ${UI.tDie}. En una partida real la elegís en secreto, y el rival también.</p>${legendHTML()}<div class="hand">${chapterIdx(UI.tDie).map(i=>cardHTML(TB().pages[i],`sel ${UI.tPick===i?'picked':''}`,`onclick="UI.tPick=${i};UI.tRes=null;render()"`)).join('')}</div>${UI.tPick!=null?tPickMsg():''}<p class="muted"><b>Costes:</b> ❤ = pagás vidas. 💀 = destruís una página vecina de tu libro (ya no la vas a poder usar). Las páginas gratis no cuestan nada.</p>`},
+ {t:'Fase 3 · Activación 👑',h:()=>`<p>Cuando los dos eligieron, <b>se revelan a la vez</b>:</p><div class="arena">${cardHTML(TB().pages[UI.tPick])}<div class="vs">VS</div>${cardHTML(ENEMY())}</div><p>El <b>👑 protagonista</b> actúa primero: paga el coste de su página y aplica sus habilidades. Después actúa el otro.</p><p>Al principio el protagonista se sortea. Después, <b>el que gana cada combate pasa a ser protagonista</b>. Algunas páginas te convierten en protagonista al revelarse.</p>`},
+ {t:'Fase 4 · Combate ⚔️',h:()=>{const r=tutCombat();return `<p>Se comparan los poderes: <b>gana quien tenga más</b>. El perdedor pierde tantas ❤ como la diferencia. Así quedó tu combate (vos eras el 👑 protagonista):</p><div class="log">${r.log.map(l=>`<div>${l}</div>`).join('')}</div><p>Resultado: vos quedás con <b>${r.lives[0]}❤</b> y el rival con <b>${r.lives[1]}❤</b>.</p><p class="muted">Ejemplo: si tenés poder 5 y el rival 3, el rival pierde 2❤. Después, ¡a por el siguiente turno!</p>`}},
+ {t:'Habilidades ✨',h:()=>`<p>Muchas páginas tienen habilidades especiales. <b>No hace falta memorizarlas</b>: cada página explica qué hace. Las más comunes:</p><ul class="parts">${Object.values(ABIL).map(t=>`<li>${t}</li>`).join('')}</ul>`},
+ {t:'Consejos para ganar 💡',h:()=>`<ul class="parts"><li>💚 <b>Cuidá tus vidas:</b> pagar costes con ❤ también te acerca a perder.</li><li>🆓 Las páginas <b>gratis</b> son muy buenas al principio.</li><li>👑 Ser protagonista ayuda: actuás primero y, si los dos llegan a 0❤ a la vez, gana el protagonista.</li><li>💀 Pensá antes de destruir páginas: no las vas a poder volver a usar.</li><li>🔎 Mirá el libro del rival con el botón 📗 para saber qué puede hacer.</li></ul>`},
+ {t:'¡Listo para jugar! 🎉',h:()=>`<div class="tvis">🏆</div><p>Ya sabés lo básico de Duelbooks. Ahora jugá una <b>partida de práctica guiada</b>: te explicamos cada paso y te marcamos una buena jugada 💡.</p><div class="center"><button onclick="startPractice()">🎓 Jugar partida de práctica</button></div><p style="margin-top:16px">Y cuando quieras el juego de verdad, con libros reales:</p>${CTA('🛒 Tienda oficial de Duelbooks')}<p class="foot-note">App de fans sin fines de lucro. Duelbooks fue creado por Sergio y Emilio · © Duelbooks.</p>`}
+];
+function tPickMsg(){const pg=TB().pages[UI.tPick];return `<p class="okmsg">Elegiste <b>«${pg.title}»</b>: poder ${pg.power}, ${pg.cost?'cuesta '+pg.cost:'es gratis'}.${pg.ab.length?' Además tiene habilidades.':''}</p>`;}
+function tutCombat(){
+ if(UI.tRes)return UI.tRes;
+ const saved=S;
+ S={mode:'cpu',turn:1,protag:0,phase:'result',players:[{name:'Jugador (vos)',book:TB(),lives:20,destroyed:new Set(),sel:UI.tPick,dice:[]},{name:'Rival',book:BOOKS[1],lives:20,destroyed:new Set(),sel:ENEMY().i,dice:[]}],log:[],xp:0,diff:DIFFS.normal};
+ resolve();UI.tRes={log:S.log.slice(),lives:S.players.map(p=>p.lives)};S=saved;return UI.tRes;
+}
+function openTutorial(){UI.screen='tutorial';UI.tstep=0;UI.tDie=null;UI.tPick=null;UI.tRes=null;UI.modal=null;render();window.scrollTo(0,0);}
+function tutorialHTML(){
+ const st=TUT[UI.tstep];
+ return `<div class="gtop"><button class="sec mini" onclick="UI.screen='menu';render()">← Menú</button><span class="md">🎓 Tutorial · ${UI.tstep+1} de ${TUT.length}</span><span style="width:60px"></span></div>
+ <div class="dots">${TUT.map((_,i)=>`<i class="${i<=UI.tstep?'on':''}"></i>`).join('')}</div><div class="box tut"><h2>${st.t}</h2>${st.h()}</div>`;
+}
+function tutActions(){
+ const st=TUT[UI.tstep],last=UI.tstep===TUT.length-1,blocked=st.need&&!st.need();
+ return `${UI.tstep?`<button class="sec" onclick="UI.tstep--;render();scrollTo(0,0)">← Atrás</button>`:''}${last?`<button onclick="UI.screen='menu';render()">Ir al menú</button>`:`<button ${blocked?'disabled':''} onclick="UI.tstep++;render();scrollTo(0,0)">${blocked?(UI.tstep===4?'Tirá el dado primero':'Elegí una página'):'Siguiente →'}</button>`}`;
+}
+function startPractice(){UI.mode='cpu';UI.books=[0,1];UI.coach=true;start();}
+
+function start(){newGame();UI.screen='game';UI.modal=null;render();window.scrollTo(0,0);}
+if(typeof document!=='undefined')render();
+if(typeof module!=='undefined')module.exports={refillHand,surrender:typeof surrender!=='undefined'?surrender:null,TUT,VILLAINS,DIFFS,drawMinion,BOOKS,get S(){return S},UI,newGame,doRoll,confirmPick,resolve,nextTurn,canSelect,chapterIdx,cpuPick};
+</script>
+</body>
+</html>
